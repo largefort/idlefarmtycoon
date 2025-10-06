@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idle Farm Tycoon - Play Now!</title>
+  <meta name="description" content="Build your farming empire in this addictive idle tycoon game!">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    
+    function IdleFarmTycoon() {
+      const [money, setMoney] = useState(10);
+      const [totalEarned, setTotalEarned] = useState(0);
+      const [prestigePoints, setPrestigePoints] = useState(0);
+      const [lastUpdate, setLastUpdate] = useState(Date.now());
+      const [activeTab, setActiveTab] = useState('crops');
+      const [showMenu, setShowMenu] = useState(false);
+      const [floatingNumbers, setFloatingNumbers] = useState([]);
+      const [purchaseAnimation, setPurchaseAnimation] = useState(null);
+      const floatingIdRef = useRef(0);
+      
+      const [quests, setQuests] = useState([
+        { id: 1, title: 'First Harvest', desc: 'Buy 10 crops', target: 10, progress: 0, reward: 100, completed: false, type: 'crops' },
+        { id: 2, title: 'Animal Farmer', desc: 'Buy 5 animals', target: 5, progress: 0, reward: 500, completed: false, type: 'animals' },
+        { id: 3, title: 'Builder', desc: 'Buy 3 buildings', target: 3, progress: 0, reward: 2000, completed: false, type: 'buildings' },
+        { id: 4, title: 'Tycoon', desc: 'Earn $100K total', target: 100000, progress: 0, reward: 10000, completed: false, type: 'money' }
+      ]);
+      const [dailyBonus, setDailyBonus] = useState({ available: true, streak: 0, lastClaim: null });
+      const [multipliers, setMultipliers] = useState({ active: [] });
+      const [showNotification, setShowNotification] = useState(null);
+      const [farmerLevel, setFarmerLevel] = useState(1);
+      const [farmerXP, setFarmerXP] = useState(0);
+      const [skillPoints, setSkillPoints] = useState(0);
+      const [skills, setSkills] = useState({
+        cropMaster: { level: 0, max: 5, bonus: 0.1, cost: 1 },
+        animalCare: { level: 0, max: 5, bonus: 0.1, cost: 1 },
+        efficiency: { level: 0, max: 5, bonus: 0.15, cost: 1 },
+        fortune: { level: 0, max: 3, bonus: 0.2, cost: 2 }
+      });
+      
+      const [crops, setCrops] = useState({
+        wheat: { count: 0, cost: 10, rate: 1, multiplier: 1, emoji: '🌾' },
+        corn: { count: 0, cost: 50, rate: 5, multiplier: 1, emoji: '🌽' },
+        tomatoes: { count: 0, cost: 200, rate: 20, multiplier: 1, emoji: '🍅' },
+        pumpkins: { count: 0, cost: 800, rate: 80, multiplier: 1, emoji: '🎃' },
+        carrots: { count: 0, cost: 3500, rate: 350, multiplier: 1, emoji: '🥕' },
+        strawberries: { count: 0, cost: 15000, rate: 1500, multiplier: 1, emoji: '🍓' },
+        grapes: { count: 0, cost: 65000, rate: 6500, multiplier: 1, emoji: '🍇' }
+      });
+      
+      const [animals, setAnimals] = useState({
+        chickens: { count: 0, cost: 100, rate: 10, multiplier: 1, emoji: '🐔' },
+        cows: { count: 0, cost: 500, rate: 50, multiplier: 1, emoji: '🐄' },
+        pigs: { count: 0, cost: 2000, rate: 200, multiplier: 1, emoji: '🐷' },
+        sheep: { count: 0, cost: 8500, rate: 850, multiplier: 1, emoji: '🐑' },
+        goats: { count: 0, cost: 35000, rate: 3500, multiplier: 1, emoji: '🐐' },
+        horses: { count: 0, cost: 150000, rate: 15000, multiplier: 1, emoji: '🐴' },
+        rabbits: { count: 0, cost: 650000, rate: 65000, multiplier: 1, emoji: '🐰' }
+      });
+      
+      const [buildings, setBuildings] = useState({
+        barn: { count: 0, cost: 1000, bonus: 1.1, emoji: '🏚️' },
+        silo: { count: 0, cost: 5000, bonus: 1.15, emoji: '🏗️' },
+        farmhouse: { count: 0, cost: 25000, bonus: 1.25, emoji: '🏡' },
+        windmill: { count: 0, cost: 100000, bonus: 1.3, emoji: '🌾' },
+        greenhouse: { count: 0, cost: 500000, bonus: 1.4, emoji: '🏢' },
+        warehouse: { count: 0, cost: 2500000, bonus: 1.5, emoji: '🏭' },
+        mansion: { count: 0, cost: 12000000, bonus: 1.75, emoji: '🏰' }
+      });
+      
+      const [upgrades, setUpgrades] = useState({
+        workers: { count: 0, cost: 500, multiplier: 1.5, emoji: '👷' },
+        automation: { count: 0, cost: 5000, multiplier: 2, emoji: '🤖' },
+        managers: { count: 0, cost: 50000, multiplier: 2.5, emoji: '👔' },
+        scientists: { count: 0, cost: 500000, multiplier: 3, emoji: '🔬' },
+        engineers: { count: 0, cost: 5000000, multiplier: 4, emoji: '⚙️' },
+        ceo: { count: 0, cost: 50000000, multiplier: 5, emoji: '💼' }
+      });
+
+      // Load saved game on mount
+      useEffect(() => {
+        const savedGame = localStorage.getItem('farmTycoonSave');
+        if (savedGame) {
+          try {
+            const data = JSON.parse(savedGame);
+            setMoney(data.money || 10);
+            setTotalEarned(data.totalEarned || 0);
+            setPrestigePoints(data.prestigePoints || 0);
+            setFarmerLevel(data.farmerLevel || 1);
+            setFarmerXP(data.farmerXP || 0);
+            setSkillPoints(data.skillPoints || 0);
+            
+            if (data.crops) setCrops(data.crops);
+            if (data.animals) setAnimals(data.animals);
+            if (data.buildings) setBuildings(data.buildings);
+            if (data.upgrades) setUpgrades(data.upgrades);
+            if (data.skills) setSkills(data.skills);
+            if (data.quests) setQuests(data.quests);
+            if (data.dailyBonus) setDailyBonus(data.dailyBonus);
+            
+            setTimeout(() => {
+              showNotif('Welcome Back!', 'Your progress has been loaded', 'success');
+            }, 500);
+          } catch (e) {
+            console.error('Failed to load save:', e);
+          }
+        }
+      }, []);
+
+      // Auto-save every 5 seconds
+      useEffect(() => {
+        const saveInterval = setInterval(() => {
+          const saveData = {
+            money,
+            totalEarned,
+            prestigePoints,
+            farmerLevel,
+            farmerXP,
+            skillPoints,
+            crops,
+            animals,
+            buildings,
+            upgrades,
+            skills,
+            quests,
+            dailyBonus,
+            lastSaved: Date.now()
+          };
+          localStorage.setItem('farmTycoonSave', JSON.stringify(saveData));
+        }, 5000);
+
+        return () => clearInterval(saveInterval);
+      }, [money, totalEarned, prestigePoints, farmerLevel, farmerXP, skillPoints, crops, animals, buildings, upgrades, skills, quests, dailyBonus]);
+
+      const calculateIncome = () => {
+        let cropIncome = 0;
+        Object.entries(crops).forEach(([key, crop]) => {
+          cropIncome += crop.count * crop.rate * crop.multiplier;
+        });
+        
+        let animalIncome = 0;
+        Object.entries(animals).forEach(([key, animal]) => {
+          animalIncome += animal.count * animal.rate * animal.multiplier;
+        });
+        
+        let buildingMultiplier = 1;
+        Object.entries(buildings).forEach(([key, building]) => {
+          buildingMultiplier *= Math.pow(building.bonus, building.count);
+        });
+        
+        let upgradeMultiplier = 1;
+        Object.entries(upgrades).forEach(([key, upgrade]) => {
+          upgradeMultiplier *= Math.pow(upgrade.multiplier, upgrade.count);
+        });
+        
+        let prestigeMultiplier = 1 + (prestigePoints * 0.1);
+        
+        let activeMultiplier = 1;
+        multipliers.active.forEach(mult => {
+          activeMultiplier *= mult.value;
+        });
+        
+        const cropBonus = 1 + (skills.cropMaster.level * skills.cropMaster.bonus);
+        const animalBonus = 1 + (skills.animalCare.level * skills.animalCare.bonus);
+        const efficiencyBonus = 1 + (skills.efficiency.level * skills.efficiency.bonus);
+        const fortuneBonus = 1 + (skills.fortune.level * skills.fortune.bonus);
+        
+        return (cropIncome * cropBonus + animalIncome * animalBonus) * buildingMultiplier * upgradeMultiplier * prestigeMultiplier * activeMultiplier * efficiencyBonus * fortuneBonus;
+      };
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          const now = Date.now();
+          const deltaTime = (now - lastUpdate) / 1000;
+          const income = calculateIncome() * deltaTime;
+          
+          setMoney(prev => prev + income);
+          setTotalEarned(prev => prev + income);
+          setLastUpdate(now);
+          
+          setQuests(prev => prev.map(q => {
+            if (q.type === 'money' && !q.completed) {
+              return { ...q, progress: totalEarned };
+            }
+            return q;
+          }));
+          
+          if (income > 0 && Math.random() > 0.8) {
+            addFloatingNumber(income, 'income');
+          }
+          
+          setMultipliers(prev => ({
+            ...prev,
+            active: prev.active.filter(m => m.endTime > now)
+          }));
+        }, 100);
+
+        return () => clearInterval(interval);
+      }, [crops, animals, buildings, upgrades, prestigePoints, lastUpdate, totalEarned, skills, multipliers]);
+
+      const addFloatingNumber = (amount, type) => {
+        const id = floatingIdRef.current++;
+        const newFloat = {
+          id,
+          amount,
+          type,
+          x: Math.random() * 80 + 10,
+          y: 50
+        };
+        setFloatingNumbers(prev => [...prev, newFloat]);
+        
+        setTimeout(() => {
+          setFloatingNumbers(prev => prev.filter(f => f.id !== id));
+        }, 2000);
+      };
+
+      const showNotif = (title, message, type = 'info') => {
+        setShowNotification({ title, message, type });
+        setTimeout(() => setShowNotification(null), 3000);
+      };
+
+      const getXPRequired = (level) => {
+        return Math.floor(100 * Math.pow(1.5, level - 1));
+      };
+
+      const addXP = (amount) => {
+        let newXP = farmerXP + amount;
+        let newLevel = farmerLevel;
+        let newSkillPoints = skillPoints;
+        
+        while (newXP >= getXPRequired(newLevel)) {
+          newXP -= getXPRequired(newLevel);
+          newLevel++;
+          newSkillPoints++;
+          showNotif('Level Up!', `You reached level ${newLevel}! Gained 1 skill point.`, 'success');
+        }
+        
+        setFarmerXP(newXP);
+        setFarmerLevel(newLevel);
+        setSkillPoints(newSkillPoints);
+      };
+
+      const upgradeSkill = (skillKey) => {
+        const skill = skills[skillKey];
+        if (skillPoints >= skill.cost && skill.level < skill.max) {
+          setSkillPoints(prev => prev - skill.cost);
+          setSkills(prev => ({
+            ...prev,
+            [skillKey]: {
+              ...skill,
+              level: skill.level + 1
+            }
+          }));
+          showNotif('Skill Upgraded!', `${skillKey} is now level ${skill.level + 1}`, 'success');
+        }
+      };
+
+      const checkQuests = (type) => {
+        setQuests(prev => prev.map(quest => {
+          if (quest.type === type && !quest.completed && quest.progress >= quest.target) {
+            setMoney(m => m + quest.reward);
+            showNotif('Quest Complete!', `${quest.title} - Earned $${formatNumber(quest.reward)}`, 'success');
+            return { ...quest, completed: true };
+          }
+          return quest;
+        }));
+      };
+
+      const claimDailyBonus = () => {
+        const now = Date.now();
+        const lastClaim = dailyBonus.lastClaim;
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        
+        if (!lastClaim || now - lastClaim >= oneDayMs) {
+          const isConsecutive = lastClaim && (now - lastClaim) < oneDayMs * 2;
+          const newStreak = isConsecutive ? dailyBonus.streak + 1 : 1;
+          const bonus = 1000 * newStreak;
+          
+          setMoney(prev => prev + bonus);
+          setDailyBonus({ available: false, streak: newStreak, lastClaim: now });
+          showNotif('Daily Bonus!', `Day ${newStreak} - Earned $${formatNumber(bonus)}`, 'success');
+        }
+      };
+
+      const activateMultiplier = (duration, value) => {
+        const cost = duration * value * 100;
+        if (money >= cost) {
+          setMoney(prev => prev - cost);
+          const endTime = Date.now() + duration * 1000;
+          setMultipliers(prev => ({
+            ...prev,
+            active: [...prev.active, { value, endTime, duration }]
+          }));
+          showNotif('Boost Active!', `${value}x multiplier for ${duration}s`, 'success');
+        }
+      };
+
+      const buyCrop = (type) => {
+        const crop = crops[type];
+        if (money >= crop.cost) {
+          setMoney(prev => prev - crop.cost);
+          setCrops(prev => ({
+            ...prev,
+            [type]: {
+              ...crop,
+              count: crop.count + 1,
+              cost: Math.floor(crop.cost * 1.15)
+            }
+          }));
+          setPurchaseAnimation(type);
+          setTimeout(() => setPurchaseAnimation(null), 300);
+          addFloatingNumber(crop.cost, 'purchase');
+          addXP(5);
+          
+          const totalCrops = Object.values(crops).reduce((sum, c) => sum + c.count, 0) + 1;
+          setQuests(prev => prev.map(q => {
+            if (q.type === 'crops') return { ...q, progress: totalCrops };
+            return q;
+          }));
+          checkQuests('crops');
+        }
+      };
+
+      const buyAnimal = (type) => {
+        const animal = animals[type];
+        if (money >= animal.cost) {
+          setMoney(prev => prev - animal.cost);
+          setAnimals(prev => ({
+            ...prev,
+            [type]: {
+              ...animal,
+              count: animal.count + 1,
+              cost: Math.floor(animal.cost * 1.15)
+            }
+          }));
+          setPurchaseAnimation(type);
+          setTimeout(() => setPurchaseAnimation(null), 300);
+          addFloatingNumber(animal.cost, 'purchase');
+          addXP(10);
+          
+          const totalAnimals = Object.values(animals).reduce((sum, a) => sum + a.count, 0) + 1;
+          setQuests(prev => prev.map(q => {
+            if (q.type === 'animals') return { ...q, progress: totalAnimals };
+            return q;
+          }));
+          checkQuests('animals');
+        }
+      };
+
+      const buyBuilding = (type) => {
+        const building = buildings[type];
+        if (money >= building.cost) {
+          setMoney(prev => prev - building.cost);
+          setBuildings(prev => ({
+            ...prev,
+            [type]: {
+              ...building,
+              count: building.count + 1,
+              cost: Math.floor(building.cost * 1.2)
+            }
+          }));
+          setPurchaseAnimation(type);
+          setTimeout(() => setPurchaseAnimation(null), 300);
+          addFloatingNumber(building.cost, 'purchase');
+          addXP(20);
+          
+          const totalBuildings = Object.values(buildings).reduce((sum, b) => sum + b.count, 0) + 1;
+          setQuests(prev => prev.map(q => {
+            if (q.type === 'buildings') return { ...q, progress: totalBuildings };
+            return q;
+          }));
+          checkQuests('buildings');
+        }
+      };
+
+      const buyUpgrade = (type) => {
+        const upgrade = upgrades[type];
+        if (money >= upgrade.cost) {
+          setMoney(prev => prev - upgrade.cost);
+          setUpgrades(prev => ({
+            ...prev,
+            [type]: {
+              ...upgrade,
+              count: upgrade.count + 1,
+              cost: Math.floor(upgrade.cost * 2)
+            }
+          }));
+          setPurchaseAnimation(type);
+          setTimeout(() => setPurchaseAnimation(null), 300);
+          addFloatingNumber(upgrade.cost, 'purchase');
+          addXP(15);
+        }
+      };
+
+      const prestige = () => {
+        if (totalEarned >= 1000000) {
+          const newPoints = Math.floor(totalEarned / 1000000);
+          setPrestigePoints(prev => prev + newPoints);
+          setMoney(10);
+          setTotalEarned(0);
+          setCrops({
+            wheat: { count: 0, cost: 10, rate: 1, multiplier: 1, emoji: '🌾' },
+            corn: { count: 0, cost: 50, rate: 5, multiplier: 1, emoji: '🌽' },
+            tomatoes: { count: 0, cost: 200, rate: 20, multiplier: 1, emoji: '🍅' },
+            pumpkins: { count: 0, cost: 800, rate: 80, multiplier: 1, emoji: '🎃' },
+            carrots: { count: 0, cost: 3500, rate: 350, multiplier: 1, emoji: '🥕' },
+            strawberries: { count: 0, cost: 15000, rate: 1500, multiplier: 1, emoji: '🍓' },
+            grapes: { count: 0, cost: 65000, rate: 6500, multiplier: 1, emoji: '🍇' }
+          });
+          setAnimals({
+            chickens: { count: 0, cost: 100, rate: 10, multiplier: 1, emoji: '🐔' },
+            cows: { count: 0, cost: 500, rate: 50, multiplier: 1, emoji: '🐄' },
+            pigs: { count: 0, cost: 2000, rate: 200, multiplier: 1, emoji: '🐷' },
+            sheep: { count: 0, cost: 8500, rate: 850, multiplier: 1, emoji: '🐑' },
+            goats: { count: 0, cost: 35000, rate: 3500, multiplier: 1, emoji: '🐐' },
+            horses: { count: 0, cost: 150000, rate: 15000, multiplier: 1, emoji: '🐴' },
+            rabbits: { count: 0, cost: 650000, rate: 65000, multiplier: 1, emoji: '🐰' }
+          });
+          setBuildings({
+            barn: { count: 0, cost: 1000, bonus: 1.1, emoji: '🏚️' },
+            silo: { count: 0, cost: 5000, bonus: 1.15, emoji: '🏗️' },
+            farmhouse: { count: 0, cost: 25000, bonus: 1.25, emoji: '🏡' },
+            windmill: { count: 0, cost: 100000, bonus: 1.3, emoji: '🌾' },
+            greenhouse: { count: 0, cost: 500000, bonus: 1.4, emoji: '🏢' },
+            warehouse: { count: 0, cost: 2500000, bonus: 1.5, emoji: '🏭' },
+            mansion: { count: 0, cost: 12000000, bonus: 1.75, emoji: '🏰' }
+          });
+          setUpgrades({
+            workers: { count: 0, cost: 500, multiplier: 1.5, emoji: '👷' },
+            automation: { count: 0, cost: 5000, multiplier: 2, emoji: '🤖' },
+            managers: { count: 0, cost: 50000, multiplier: 2.5, emoji: '👔' },
+            scientists: { count: 0, cost: 500000, multiplier: 3, emoji: '🔬' },
+            engineers: { count: 0, cost: 5000000, multiplier: 4, emoji: '⚙️' },
+            ceo: { count: 0, cost: 50000000, multiplier: 5, emoji: '💼' }
+          });
+          setQuests([
+            { id: 1, title: 'First Harvest', desc: 'Buy 10 crops', target: 10, progress: 0, reward: 100, completed: false, type: 'crops' },
+            { id: 2, title: 'Animal Farmer', desc: 'Buy 5 animals', target: 5, progress: 0, reward: 500, completed: false, type: 'animals' },
+            { id: 3, title: 'Builder', desc: 'Buy 3 buildings', target: 3, progress: 0, reward: 2000, completed: false, type: 'buildings' },
+            { id: 4, title: 'Tycoon', desc: 'Earn $100K total', target: 100000, progress: 0, reward: 10000, completed: false, type: 'money' }
+          ]);
+          showNotif('Prestige!', `Gained ${newPoints} prestige points!`, 'success');
+        }
+      };
+
+      const resetGame = () => {
+        if (confirm('Are you sure you want to reset ALL progress? This cannot be undone!')) {
+          localStorage.removeItem('farmTycoonSave');
+          window.location.reload();
+        }
+      };
+
+      const formatNumber = (num) => {
+        if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+        if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+        return num.toFixed(2);
+      };
+
+      const renderItems = (items, buyFunction) => (
+        <div className="space-y-3">
+          {Object.entries(items).map(([key, item]) => (
+            <div 
+              key={key} 
+              className={`bg-white rounded-lg shadow-md p-4 transition-all duration-300 ${
+                purchaseAnimation === key 
+                  ? 'scale-105 shadow-xl ring-4 ring-green-400' 
+                  : 'hover:shadow-lg active:scale-95'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className={`text-3xl transition-transform duration-300 ${
+                    purchaseAnimation === key ? 'scale-125' : ''
+                  }`} style={{animation: purchaseAnimation === key ? 'bounce 0.5s' : 'none'}}>
+                    {item.emoji}
+                  </span>
+                  <div>
+                    <div className="font-bold text-lg capitalize">{key}</div>
+                    <div className="text-sm text-gray-600 transition-all">
+                      Owned: <span className={`${purchaseAnimation === key ? 'text-green-600 font-bold' : ''}`}>
+                        {item.count}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">
+                    {item.rate ? `$${formatNumber(item.rate * item.multiplier)}/s` : 
+                     item.bonus ? `+${((item.bonus - 1) * 100).toFixed(0)}%` : 
+                     `${item.multiplier}x`}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => buyFunction(key)}
+                disabled={money < item.cost}
+                className={`w-full py-3 rounded-lg font-bold text-lg transition-all duration-200 ${
+                  money >= item.cost
+                    ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Buy - ${formatNumber(item.cost)}
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-green-100 to-yellow-50 relative overflow-hidden">
+          {floatingNumbers.map(float => (
+            <div
+              key={float.id}
+              className={`fixed pointer-events-none z-50 font-bold text-2xl ${
+                float.type === 'income' ? 'text-green-600' : 'text-red-600'
+              }`}
+              style={{
+                left: `${float.x}%`,
+                top: `${float.y}%`,
+                animation: 'floatUp 2s ease-out forwards'
+              }}
+            >
+              {float.type === 'income' ? '+' : '-'}${formatNumber(float.amount)}
+            </div>
+          ))}
+          
+          {showNotification && (
+            <div className={`fixed top-20 right-4 z-50 p-4 rounded-lg shadow-2xl max-w-sm ${
+              showNotification.type === 'success' ? 'bg-green-600' : 
+              showNotification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+            } text-white`}
+            style={{ animation: 'slideIn 0.3s ease-out forwards' }}>
+              <div className="font-bold mb-1">{showNotification.title}</div>
+              <div className="text-sm">{showNotification.message}</div>
+            </div>
+          )}
+          
+          <style>{`
+            @keyframes floatUp {
+              0% { opacity: 1; transform: translateY(0) scale(1); }
+              100% { opacity: 0; transform: translateY(-100px) scale(1.5); }
+            }
+            @keyframes slideIn {
+              0% { transform: translateX(400px); opacity: 0; }
+              100% { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes bounce {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.3); }
+            }
+          `}</style>
+
+          <div className="bg-green-700 text-white p-4 sticky top-0 z-10 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-2xl font-bold">🚜 Farm Tycoon</h1>
+              <button 
+                onClick={() => setShowMenu(!showMenu)} 
+                className="p-2 hover:bg-green-600 rounded-lg"
+              >
+                {showMenu ? '✕' : '☰'}
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="bg-green-800 rounded p-2">
+                <div className="text-green-200 text-xs">Money</div>
+                <div className="font-bold text-lg">${formatNumber(money)}</div>
+              </div>
+              <div className="bg-green-800 rounded p-2">
+                <div className="text-green-200 text-xs">Per Second</div>
+                <div className="font-bold text-lg">${formatNumber(calculateIncome())}/s</div>
+              </div>
+            </div>
+
+            {showMenu && (
+              <div className="mt-3 space-y-2">
+                <div className="bg-green-800 rounded p-2">
+                  <div className="text-green-200 text-xs">Total Earned</div>
+                  <div className="font-bold">${formatNumber(totalEarned)}</div>
+                </div>
+                <div className="bg-green-800 rounded p-2">
+                  <div className="text-green-200 text-xs">Prestige Points</div>
+                  <div className="font-bold">{prestigePoints} (+{prestigePoints * 10}% boost)</div>
+                </div>
+                <div className="bg-green-800 rounded p-2">
+                  <div className="text-green-200 text-xs">👨‍🌾 Farmer Level {farmerLevel}</div>
+                  <div className="w-full bg-green-900 rounded-full h-2 mt-1">
+                    <div 
+                      className="bg-yellow-400 h-2 rounded-full"
+                      style={{ width: `${(farmerXP / getXPRequired(farmerLevel)) * 100}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-green-200 mt-1">{farmerXP} / {getXPRequired(farmerLevel)} XP</div>
+                  <div className="text-xs text-yellow-300 font-bold mt-1">🌟 Skill Points: {skillPoints}</div>
+                </div>
+                <div className="bg-green-800 rounded p-2 mt-2">
+                  <button
+                    onClick={resetGame}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold text-sm"
+                  >
+                    🔄 Reset Game
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {totalEarned >= 1000000 && (
+              <button
+                onClick={prestige}
+                className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold mt-3"
+              >
+                🔄 Prestige (+{Math.floor(totalEarned / 1000000)} points)
+              </button>
+            )}
+          </div>
+
+          <div className="sticky top-0 z-20 bg-white shadow-md">
+            <div className="flex overflow-x-auto">
+              {[
+                { id: 'crops', label: 'Crops', icon: '🌾' },
+                { id: 'animals', label: 'Animals', icon: '🐔' },
+                { id: 'buildings', label: 'Buildings', icon: '🏠' },
+                { id: 'upgrades', label: 'Upgrades', icon: '⚡' },
+                { id: 'skills', label: 'Skills', icon: '👨‍🌾' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-3 px-2 font-semibold flex flex-col items-center gap-1 transition-all ${
+                    activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'
+                  }`}
+                >
+                  <span className="text-2xl">{tab.icon}</span>
+                  <span className="text-xs sm:text-sm">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 pb-20">
+            {activeTab === 'crops' && (
+              <>
+                {renderItems(crops, buyCrop)}
+                <div className="mt-6 space-y-4">
+                  <div className="bg-white rounded-lg shadow-lg p-4">
+                    <h3 className="text-xl font-bold text-purple-700 mb-3">🎯 Quests</h3>
+                    {quests.filter(q => !q.completed).map(quest => (
+                      <div key={quest.id} className="mb-3 p-3 bg-purple-50 rounded-lg">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-bold">{quest.title}</div>
+                            <div className="text-sm text-gray-600">{quest.desc}</div>
+                          </div>
+                          <div className="text-sm font-bold text-green-600">+${formatNumber(quest.reward)}</div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-purple-600 h-2 rounded-full"
+                            style={{ width: `${Math.min((quest.progress / quest.target) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">{quest.progress} / {quest.target}</div>
+                      </div>
+                    ))}
+                    {quests.every(q => q.completed) && (
+                      <div className="text-center text-gray-500 py-4">All quests completed! 🎉</div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-lg p-4">
+                    <h3 className="text-xl font-bold text-yellow-700 mb-3">🎁 Daily Bonus</h3>
+                    <div className="text-center">
+                      <div className="text-sm text-gray-600 mb-2">Streak: {dailyBonus.streak} days</div>
+                      <button
+                        onClick={claimDailyBonus}
+                        disabled={!dailyBonus.available && dailyBonus.lastClaim && (Date.now() - dailyBonus.lastClaim) < 24 * 60 * 60 * 1000}
+                        className="w-full bg-yellow-600 text-white py-3 rounded-lg font-bold disabled:bg-gray-300"
+                      >
+                        Claim ${formatNumber(1000 * (dailyBonus.streak + 1))}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-lg p-4">
+                    <h3 className="text-xl font-bold text-blue-700 mb-3">⚡ Boosts</h3>
+                    {multipliers.active.length > 0 && (
+                      <div className="mb-3 p-2 bg-blue-50 rounded">
+                        <div className="text-sm font-bold">Active: {multipliers.active.map(m => `${m.value}x`).join(', ')}</div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button onClick={() => activateMultiplier(30, 2)} className="bg-blue-600 text-white py-2 rounded text-sm font-bold">
+                        2x 30s<br/>${formatNumber(6000)}
+                      </button>
+                      <button onClick={() => activateMultiplier(60, 3)} className="bg-blue-600 text-white py-2 rounded text-sm font-bold">
+                        3x 60s<br/>${formatNumber(18000)}
+                      </button>
+                      <button onClick={() => activateMultiplier(120, 5)} className="bg-blue-600 text-white py-2 rounded text-sm font-bold">
+                        5x 120s<br/>${formatNumber(60000)}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {activeTab === 'animals' && renderItems(animals, buyAnimal)}
+            {activeTab === 'buildings' && renderItems(buildings, buyBuilding)}
+            {activeTab === 'upgrades' && renderItems(upgrades, buyUpgrade)}
+            
+            {activeTab === 'skills' && (
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h2 className="text-2xl font-bold text-green-700 mb-2">👨‍🌾 Farmer Profile</h2>
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-lg font-bold">Level {farmerLevel}</span>
+                      <span className="text-sm text-gray-600">{farmerXP} / {getXPRequired(farmerLevel)} XP</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div 
+                        className="bg-gradient-to-r from-green-500 to-yellow-500 h-4 rounded-full"
+                        style={{ width: `${(farmerXP / getXPRequired(farmerLevel)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-400">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-yellow-600">🌟 {skillPoints}</div>
+                      <div className="text-sm text-gray-600">Available Skill Points</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-purple-700 mb-4">🎯 Skills</h3>
+                  
+                  <div className="space-y-4">
+                    {Object.entries(skills).map(([key, skill]) => (
+                      <div key={key} className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-bold text-lg capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                            <div className="text-sm text-gray-600">
+                              +{(skill.bonus * 100).toFixed(0)}% per level
+                            </div>
+                          </div>
+                          <div className="text-sm font-bold text-purple-600">
+                            Level {skill.level}/{skill.max}
+                          </div>
+                        </div>
+                        <div className="text-sm text-green-600 mb-3">
+                          Current: +{(skill.level * skill.bonus * 100).toFixed(0)}%
+                        </div>
+                        <button
+                          onClick={() => upgradeSkill(key)}
+                          disabled={skillPoints < skill.cost || skill.level >= skill.max}
+                          className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold disabled:bg-gray-300"
+                        >
+                          Upgrade ({skill.cost} SP)
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                    <div className="text-sm font-bold mb-1">💡 Gain XP by:</div>
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <div>• Crops: +5 XP</div>
+                      <div>• Animals: +10 XP</div>
+                      <div>• Upgrades: +15 XP</div>
+                      <div>• Buildings: +20 XP</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<IdleFarmTycoon />);
+  </script>
+</body>
+</html>
