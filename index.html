@@ -2,13 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Idle Farm Tycoon - Play Now!</title>
   <meta name="description" content="Build your farming empire in this addictive idle tycoon game!">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    body {
+      overscroll-behavior: none;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #root {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
@@ -466,26 +490,26 @@
       };
 
       const renderItems = (items, buyFunction) => (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {Object.entries(items).map(([key, item]) => (
             <div 
               key={key} 
-              className={`bg-white rounded-lg shadow-md p-4 transition-all duration-300 ${
+              className={`bg-white rounded-lg shadow-md p-3 sm:p-4 transition-all duration-300 ${
                 purchaseAnimation === key 
-                  ? 'scale-105 shadow-xl ring-4 ring-green-400' 
-                  : 'hover:shadow-lg active:scale-95'
+                  ? 'scale-105 shadow-xl ring-2 sm:ring-4 ring-green-400' 
+                  : 'active:scale-95'
               }`}
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className={`text-3xl transition-transform duration-300 ${
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className={`text-2xl sm:text-3xl transition-transform duration-300 ${
                     purchaseAnimation === key ? 'scale-125' : ''
                   }`} style={{animation: purchaseAnimation === key ? 'bounce 0.5s' : 'none'}}>
                     {item.emoji}
                   </span>
                   <div>
-                    <div className="font-bold text-lg capitalize">{key}</div>
-                    <div className="text-sm text-gray-600 transition-all">
+                    <div className="font-bold text-base sm:text-lg capitalize">{key}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 transition-all">
                       Owned: <span className={`${purchaseAnimation === key ? 'text-green-600 font-bold' : ''}`}>
                         {item.count}
                       </span>
@@ -493,8 +517,28 @@
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-xs sm:text-sm text-gray-600">
                     {item.rate ? `$${formatNumber(item.rate * item.multiplier)}/s` : 
+                     item.bonus ? `+${((item.bonus - 1) * 100).toFixed(0)}%` : 
+                     `${item.multiplier}x`}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => buyFunction(key)}
+                disabled={money < item.cost}
+                className={`w-full py-2 sm:py-3 rounded-lg font-bold text-base sm:text-lg transition-all duration-200 ${
+                  money >= item.cost
+                    ? 'bg-green-600 text-white active:bg-green-800'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Buy - ${formatNumber(item.cost)}
+              </button>
+            </div>
+          ))}
+        </div>
+      );$${formatNumber(item.rate * item.multiplier)}/s` : 
                      item.bonus ? `+${((item.bonus - 1) * 100).toFixed(0)}%` : 
                      `${item.multiplier}x`}
                   </div>
@@ -517,11 +561,11 @@
       );
 
       return (
-        <div className="min-h-screen bg-gradient-to-b from-green-100 to-yellow-50 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-b from-green-100 to-yellow-50 relative">
           {floatingNumbers.map(float => (
             <div
               key={float.id}
-              className={`fixed pointer-events-none z-50 font-bold text-2xl ${
+              className={`fixed pointer-events-none z-50 font-bold text-xl sm:text-2xl ${
                 float.type === 'income' ? 'text-green-600' : 'text-red-600'
               }`}
               style={{
@@ -535,13 +579,13 @@
           ))}
           
           {showNotification && (
-            <div className={`fixed top-20 right-4 z-50 p-4 rounded-lg shadow-2xl max-w-sm ${
+            <div className={`fixed top-4 left-4 right-4 sm:top-20 sm:left-auto sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-2xl max-w-sm ${
               showNotification.type === 'success' ? 'bg-green-600' : 
               showNotification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
             } text-white`}
             style={{ animation: 'slideIn 0.3s ease-out forwards' }}>
-              <div className="font-bold mb-1">{showNotification.title}</div>
-              <div className="text-sm">{showNotification.message}</div>
+              <div className="font-bold mb-1 text-sm sm:text-base">{showNotification.title}</div>
+              <div className="text-xs sm:text-sm">{showNotification.message}</div>
             </div>
           )}
           
@@ -560,39 +604,40 @@
             }
           `}</style>
 
-          <div className="bg-green-700 text-white p-4 sticky top-0 z-10 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-2xl font-bold">🚜 Farm Tycoon</h1>
+          {/* Sticky Header with Money Display */}
+          <div className="bg-green-700 text-white p-3 sm:p-4 sticky top-0 z-30 shadow-lg">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h1 className="text-lg sm:text-2xl font-bold">🚜 Farm Tycoon</h1>
               <button 
                 onClick={() => setShowMenu(!showMenu)} 
-                className="p-2 hover:bg-green-600 rounded-lg"
+                className="p-2 hover:bg-green-600 rounded-lg active:bg-green-800"
               >
                 {showMenu ? '✕' : '☰'}
               </button>
             </div>
             
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="bg-green-800 rounded p-2">
+              <div className="bg-green-800 rounded p-2 sm:p-3">
                 <div className="text-green-200 text-xs">Money</div>
-                <div className="font-bold text-lg">${formatNumber(money)}</div>
+                <div className="font-bold text-base sm:text-lg">${formatNumber(money)}</div>
               </div>
-              <div className="bg-green-800 rounded p-2">
+              <div className="bg-green-800 rounded p-2 sm:p-3">
                 <div className="text-green-200 text-xs">Per Second</div>
-                <div className="font-bold text-lg">${formatNumber(calculateIncome())}/s</div>
+                <div className="font-bold text-base sm:text-lg">${formatNumber(calculateIncome())}/s</div>
               </div>
             </div>
 
             {showMenu && (
               <div className="mt-3 space-y-2">
-                <div className="bg-green-800 rounded p-2">
+                <div className="bg-green-800 rounded p-2 sm:p-3">
                   <div className="text-green-200 text-xs">Total Earned</div>
-                  <div className="font-bold">${formatNumber(totalEarned)}</div>
+                  <div className="font-bold text-sm sm:text-base">${formatNumber(totalEarned)}</div>
                 </div>
-                <div className="bg-green-800 rounded p-2">
+                <div className="bg-green-800 rounded p-2 sm:p-3">
                   <div className="text-green-200 text-xs">Prestige Points</div>
-                  <div className="font-bold">{prestigePoints} (+{prestigePoints * 10}% boost)</div>
+                  <div className="font-bold text-sm sm:text-base">{prestigePoints} (+{prestigePoints * 10}% boost)</div>
                 </div>
-                <div className="bg-green-800 rounded p-2">
+                <div className="bg-green-800 rounded p-2 sm:p-3">
                   <div className="text-green-200 text-xs">👨‍🌾 Farmer Level {farmerLevel}</div>
                   <div className="w-full bg-green-900 rounded-full h-2 mt-1">
                     <div 
@@ -606,7 +651,7 @@
                 <div className="bg-green-800 rounded p-2 mt-2">
                   <button
                     onClick={resetGame}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold text-sm"
+                    className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white py-2 rounded font-bold text-sm"
                   >
                     🔄 Reset Game
                   </button>
@@ -617,14 +662,27 @@
             {totalEarned >= 1000000 && (
               <button
                 onClick={prestige}
-                className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold mt-3"
+                className="w-full bg-purple-600 text-white py-2 sm:py-3 rounded-lg font-bold mt-3 text-sm sm:text-base active:bg-purple-800"
               >
                 🔄 Prestige (+{Math.floor(totalEarned / 1000000)} points)
               </button>
             )}
           </div>
 
-          <div className="sticky top-0 z-20 bg-white shadow-md">
+          {/* Sticky Money Display when scrolling - Shows below tabs */}
+          <div className="sticky top-[120px] sm:top-[140px] z-20 bg-green-600 text-white px-3 py-2 shadow-md">
+            <div className="flex justify-between items-center text-xs sm:text-sm">
+              <div>
+                <span className="font-bold">${formatNumber(money)}</span>
+              </div>
+              <div className="text-green-200">
+                <span className="font-semibold">${formatNumber(calculateIncome())}/s</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="sticky top-[88px] sm:top-[108px] z-25 bg-white shadow-md">
             <div className="flex overflow-x-auto">
               {[
                 { id: 'crops', label: 'Crops', icon: '🌾' },
@@ -636,18 +694,19 @@
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-3 px-2 font-semibold flex flex-col items-center gap-1 transition-all ${
-                    activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'
+                  className={`flex-1 py-2 sm:py-3 px-2 font-semibold flex flex-col items-center gap-1 transition-all min-w-[20%] ${
+                    activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50 active:bg-green-100'
                   }`}
                 >
-                  <span className="text-2xl">{tab.icon}</span>
+                  <span className="text-xl sm:text-2xl">{tab.icon}</span>
                   <span className="text-xs sm:text-sm">{tab.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="p-4 pb-20">
+          {/* Content Area - Optimized padding for mobile */}
+          <div className="p-3 sm:p-4 pb-20 sm:pb-24">
             {activeTab === 'crops' && (
               <>
                 {renderItems(crops, buyCrop)}
